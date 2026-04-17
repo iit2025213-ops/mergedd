@@ -1,0 +1,59 @@
+# ==============================================================================
+# BOOSTING ALGORITHMS CONFIGURATION (LGBM & XGB)
+# Optimized for A100 GPU Acceleration and M5 Intermittency.
+# ==============================================================================
+
+# --- Global Boosting Setup ---
+global:
+  device: "gpu"
+  gpu_device_id: 0
+  random_state: 42
+  num_boost_round: 2500
+  early_stopping_rounds: 100
+
+# --- LightGBM Expert (The DART Generalizer) ---
+# DART is used here because it is more robust to the noise in retail sales.
+lgbm:
+  boosting_type: "dart"
+  objective: "tweedie"
+  tweedie_variance_power: 1.15   # Optimized for low-volume zeros
+  metric: "None"                 # Using custom WRMSSE evaluation
+  learning_rate: 0.05
+  num_leaves: 255
+  min_data_in_leaf: 100
+  feature_fraction: 0.8
+  bagging_fraction: 0.8
+  bagging_freq: 5
+  max_bin: 1023                  # High-resolution binning for A100 VRAM
+  lambda_l1: 0.1
+  lambda_l2: 0.1
+  n_jobs: -1
+
+# --- XGBoost Expert (The Interaction Specialist) ---
+# Higher depth allowed to capture complex cross-feature interactions.
+xgb:
+  objective: "reg:tweedie"
+  tweedie_variance_power: 1.5    # Differentiated from LGBM for ensemble diversity
+  tree_method: "gpu_hist"        # High-performance histogram building on A100
+  max_depth: 10                  # Deep trees for local interaction capture
+  learning_rate: 0.03
+  subsample: 0.7
+  colsample_bytree: 0.7
+  alpha: 0.5                     # Stronger L1 to prune irrelevant features
+  lambda: 1.5                    # L2 for weight stability
+  predictor: "gpu_predictor"
+
+# --- Ensemble Fusion Settings ---
+# These are the meta-hyperparameters for the final hybrid blend.
+fusion:
+  # Initial weights for the Weighted Average Blend.
+  # Optimization Target: WRMSSE < 0.5
+  weights:
+    gnn_ensemble: 0.60
+    lgbm_expert: 0.20
+    xgb_expert: 0.20
+  
+  # Logic for Post-Processing
+  post_process:
+    floor_at_zero: True
+    apply_rounding: False        # Research suggests keeping floats for WRMSSE

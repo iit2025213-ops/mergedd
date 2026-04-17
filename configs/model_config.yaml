@@ -1,0 +1,74 @@
+# ==============================================================================
+# MODEL ARCHITECTURE CONFIGURATION
+# Optimized for high-capacity representation learning on NVIDIA A100 80GB.
+# ==============================================================================
+
+model_name: "DecagonEnsemble_V1"
+
+# --- Global Latent Space ---
+# Increasing these scales the learning capacity of all experts.
+# 256 is the "Sweet Spot" for A100 VRAM-to-Compute efficiency.
+global_settings:
+  in_channels: 128      # Dimension of your input feature vector
+  hidden_channels: 256  # Dimension of latent embeddings across all experts
+  dropout_rate: 0.15
+  use_layer_scale: True # Toggle for the 1e-6 LayerScale in base_expert.py
+
+# --- Specialist Expert Definitions ---
+experts:
+  # 1. Hierarchical-Spatial Expert
+  h_gnn:
+    num_layers: 4
+    heads: 1
+    normalize: True
+    
+  # 2. Behavioral/Correlation Expert
+  c_gnn:
+    num_layers: 3
+    heads: 16            # High head-count to find multiple basket relationships
+    threshold: 0.75      # Pearson correlation cutoff
+    
+  # 3. Graphormer (Global Attention)
+  graphormer:
+    num_layers: 3
+    heads: 8
+    max_degree: 512      # Degree-centrality encoding cap
+    
+  # 4. Path Signature Expert
+  sig_gnn:
+    num_layers: 3
+    sig_depth: 3         # Iterated integral depth
+    sig_channels: 32     # Compressed signature dimension
+    
+  # 5. Zero-Inflated (Hurdle) Expert
+  zi_gnn:
+    num_layers: 3
+    alpha: 0.2           # Weight for the classification head loss
+    
+  # 6. Economic Elasticity Expert
+  e_gnn:
+    num_layers: 3
+    heads: 12
+    edge_dim: 2          # [price_ratio, promo_diff]
+    
+  # 7. Calendar/Event Expert
+  cal_gnn:
+    num_layers: 3
+    fourier_dim: 64      # Resolution of the phase-shift temporal encodings
+    
+  # 8. Supply-Chain Flow Expert
+  flow_gnn:
+    num_layers: 4
+    directed: True       # Strictly DC -> Store flow
+    
+  # 9. Adversarial Robustness Expert
+  vat_gnn:
+    num_layers: 5        # Deeper for manifold smoothness
+    eps: 1e-3            # Local perturbation radius
+    
+# --- Meta-Blender (The Brain) ---
+blender:
+  type: "cross_attention"
+  num_heads: 4
+  query_dim: 256
+  forecast_horizon: 28   # M5 Standard

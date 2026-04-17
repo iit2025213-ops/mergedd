@@ -1,0 +1,50 @@
+# ==============================================================================
+# DATA PIPELINE & GRAPH VIEW CONFIGURATION
+# Manages the high-throughput flow from disk to the A100 VRAM.
+# ==============================================================================
+
+# --- Path Infrastructure ---
+paths:
+  raw_data_dir: "data/raw/"
+  processed_dir: "data/processed/"
+  graph_store: "data/graphs/"
+  submission_dir: "outputs/submissions/"
+
+# --- The Decagon Topology (10 Views) ---
+# Maps the Expert ID to its specific topological edge_index file.
+graph_views:
+  hierarchical: "hier_edge_index.pt"
+  behavioral: "corr_edge_index.pt"
+  global_transformer: "global_edge_index.pt"
+  path_signature: "sig_edge_index.pt"
+  zero_inflation: "zi_edge_index.pt"
+  economic: "econ_edge_index.pt"
+  temporal_sync: "cal_edge_index.pt"
+  logistics_flow: "flow_edge_index.pt"
+  adversarial: "vat_edge_index.pt"
+  structural: "struct_edge_index.pt"
+
+# --- Feature Engineering Toggles ---
+# These are passed to the GraphBuilder and Pipeline during runtime.
+features:
+  lags: [1, 7, 14, 28]
+  rolling_windows: [7, 14, 28, 60]
+  use_dynamic_prices: True
+  use_event_flags: True
+  signature_depth: 3         # Log-Signature iterated integral depth
+  fourier_components: 10     # Number of sin/cos pairs for CalGNN
+
+# --- WRMSSE Metadata (The 'Metric North Star') ---
+# Essential for Stage 2 Training and Loss Alignment.
+wrmsse_meta:
+  weight_file: "m5_weights.pt"
+  scale_file: "m5_scales.pt"
+  aggregation_matrix: "m5_agg_matrix_sparse.pt" # S matrix [9, 30490]
+  levels: 12                 # M5 Hierarchical Levels
+
+# --- A100 Data Loader Tuning ---
+dataloader:
+  num_workers: 12            # Maximizes CPU-to-GPU throughput
+  pin_memory: True           # Enables Direct Memory Access (DMA)
+  prefetch_factor: 2         # Pre-fetches batches to hide IO latency
+  persistent_workers: True   # Keeps the pipeline 'warm' between epochs

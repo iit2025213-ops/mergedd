@@ -1,0 +1,31 @@
+# --- Core Deep Learning & GNN ---
+torch>=2.0.0
+torch-geometric
+torch-scatter
+torch-sparse
+torch-cluster
+torch-spline-conv
+
+# --- Rough Path Theory (SigGNN) ---
+signatory
+
+# --- Tabular Experts (Boosting) ---
+lightgbm
+xgboost
+
+# --- Data Engineering & Processing ---
+pandas
+numpy
+scipy
+scikit-learn
+pyyaml
+tqdm
+joblib
+pyarrow
+fastparquet
+
+# --- Diagnostics & Visualization ---
+matplotlib
+seaborn
+networkx
+tensorboard

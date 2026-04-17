@@ -1,0 +1,56 @@
+# ==============================================================================
+# TRAINING & OPTIMIZATION REGIME
+# Focused on Generalization Stability and Chaos Resilience.
+# ==============================================================================
+
+# --- Optimization Engine ---
+optimizer:
+  type: "AdamW"           # Decoupled weight decay is essential for GNN stability
+  lr: 1.0e-3              # Peak Learning Rate (managed by OneCycleLR)
+  weight_decay: 0.01      # L2 regularization for all linear layers
+  betas: [0.9, 0.999]
+  eps: 1.0e-8             # Numerical stability for A100 FP16
+
+# --- Learning Rate Scheduling ---
+# Uses the "Super-Convergence" strategy to help deep ensembles escape local minima.
+scheduler:
+  type: "OneCycleLR"
+  pct_start: 0.3          # 30% of time spent warming up
+  div_factor: 25.0        # Initial LR = lr / 25
+  final_div_factor: 1.0e4 # Final LR = lr / 10000
+  anneal_strategy: "cos"
+
+# --- Advanced Regularization (The sub-0.5 Secret) ---
+regularization:
+  # 1. Virtual Adversarial Training (VAT)
+  # Forces the model's Jacobian to be smooth (Stability Expert).
+  vat:
+    enabled: True
+    alpha: 1.0            # Coefficient for the VAT consistency loss
+    eps: 1.0e-3           # Radius of the adversarial perturbation
+    ip: 1                 # Power iterations for estimating the gradient direction
+
+  # 2. Exponential Moving Average (EMA)
+  # Maintains a "Shadow" model of averaged weights for inference.
+  ema:
+    enabled: True
+    decay: 0.999          # Keeps 99.9% of previous weight state
+    update_after_step: 100
+
+  # 3. Label Smoothing & Clipping
+  gradient_clip: 1.0      # Prevents "Demand Shock" gradient explosion
+  stochastic_depth: 0.1   # Probability of dropping a residual block (from base_expert.py)
+
+# --- Compute & Efficiency (A100 80GB Optimized) ---
+compute:
+  mixed_precision: True   # Utilizing NVIDIA Tensor Cores (FP16/BF16)
+  num_epochs: 50
+  batch_size: 1           # Graph-level batching (one full store graph per step)
+  accumulate_grad: 4      # Effective batch size of 4 to smooth out updates
+  non_blocking: True      # Asynchronous CPU-to-GPU data transfer
+  
+# --- Early Stopping & Checkpointing ---
+hooks:
+  early_stopping_patience: 10
+  monitor_metric: "val_wrmsse"
+  save_top_k: 3
